@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Banshee</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-wrapper">
+
+    <!-- HEADER -->
+    <div class="header">
+      <img src="icons/icon128.png" alt="Banshee" class="logo">
+      <span class="brand" id="header-title">Banshee</span>
+      <button id="btn-settings" class="icon-btn" title="Paramètres">⚙️</button>
+    </div>
+
+    <!-- ── STATE : LOADING ── -->
+    <div id="state-loading" class="state">
+      <div class="state-body">
+        <div class="dots-loader">
+          <span></span><span></span><span></span>
+        </div>
+        <p class="state-label muted">Détection en cours…</p>
+      </div>
+    </div>
+
+    <!-- ── STATE : NO GAME ── -->
+    <div id="state-no_game" class="state">
+      <div class="state-body">
+        <div class="big-icon">🎮</div>
+        <h2 class="state-title">Aucun jeu détecté</h2>
+        <p class="state-sub">Navigue sur une page de jeu pour voir les informations.</p>
+      </div>
+    </div>
+
+    <!-- ── STATE : VALID (studio européen) ── -->
+    <div id="state-valid" class="state">
+      <div class="state-body">
+        <div class="badge badge--valid">
+          <span class="badge-icon">✓</span>
+          <span class="badge-text">Studio Européen</span>
+        </div>
+        <div class="flag-big" id="valid-flag"></div>
+        <h2 class="state-title" id="valid-studio">—</h2>
+        <p class="state-country" id="valid-country">—</p>
+      </div>
+    </div>
+
+    <!-- ── STATE : INVALID (non européen) ── -->
+    <div id="state-invalid" class="state">
+      <div class="state-body">
+        <div class="badge badge--invalid">
+          <span class="badge-icon">✕</span>
+          <span class="badge-text">Hors Europe</span>
+        </div>
+        <div class="flag-big" id="invalid-flag"></div>
+        <h2 class="state-title" id="invalid-studio">—</h2>
+        <p class="state-country" id="invalid-country">—</p>
+      </div>
+    </div>
+
+    <!-- ── STATE : INCONNU ── -->
+    <div id="state-inconnu" class="state">
+      <div class="state-body">
+        <div class="badge badge--inconnu">
+          <span class="badge-icon">?</span>
+          <span class="badge-text">Studio inconnu</span>
+        </div>
+        <div class="big-icon">❓</div>
+        <h2 class="state-title" id="inconnu-studio">—</h2>
+        <p class="state-sub">
+          Ce studio n'est pas dans notre base.
+          <a href="https://discord.gg/DPush3mCUa" target="_blank" class="link">Signaler</a>
+        </p>
+      </div>
+    </div>
+
+    <!-- ── STATE : PARAMÈTRES ── -->
+    <div id="state-settings" class="state">
+      <div class="state-body settings-body">
+        <div class="settings-section">
+          <h3 class="settings-section-title">Apparence</h3>
+          <div class="settings-row" id="row-mini">
+            <span class="settings-row-label">Montrer les mini popup</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-mini-popup">
+              <span class="toggle-track">
+                <span class="toggle-thumb"></span>
+              </span>
+            </label>
+          </div>
+          <div class="settings-row" id="row-inconnu">
+            <span class="settings-row-label">Montrer popup lorsque inconnu</span>
+            <label class="toggle">
+              <input type="checkbox" id="toggle-inconnu-popup">
+              <span class="toggle-track">
+                <span class="toggle-thumb"></span>
+              </span>
+            </label>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-section">
+          <h3 class="settings-section-title">À propos</h3>
+          <p class="settings-item-text" id="settings-apropos-txt">Banshee v0.1 — Extension de suivi des studios européens sur Steam &amp; Instant Gaming. Développée avec ❤️ pour soutenir les jeux made in EU.</p>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-section">
+          <h3 class="settings-section-title">Contribuer</h3>
+          <p class="settings-item-text" id="settings-contribuer-txt">Un studio manquant ? <a href="https://discord.gg/DPush3mCUa" target="_blank" class="link">Rejoins le Discord</a> pour nous aider à enrichir la base de données.</p>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-section">
+          <h3 class="settings-section-title" id="settings-soutenir-title">Soutenir</h3>
+          <p class="settings-item-text" id="settings-soutenir-txt">Banshee est gratuit et sans pub. Si tu l'apprécies, un petit café fait vraiment la différence ☕</p>
+          <a href="https://ko-fi.com/lichebanshee" target="_blank" id="btn-kofi" style="display:inline-flex;align-items:center;gap:7px;margin-top:8px;padding:7px 14px;background:linear-gradient(135deg,#FF5E5B,#d94f4c);color:#fff;border-radius:999px;font-size:11px;font-weight:700;text-decoration:none;letter-spacing:0.3px;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+            <span>☕</span><span id="settings-soutenir-btn">Soutenir sur Ko-fi</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <span class="signature">Banshee · EU Game Tracker</span>
+      <div class="lang-switcher">
+        <span id="lang-fr" class="lang-btn active">FR</span>
+        <span class="lang-sep">·</span>
+        <span id="lang-en" class="lang-btn">EN</span>
+      </div>
+    </div>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

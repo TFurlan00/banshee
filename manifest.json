@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "Banshee",
+  "version": "2.1",
+  "description": "Indicator for game made in europe",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "webNavigation",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.steampowered.com/*",
+    "*://*.instant-gaming.com/*",
+    "*://flagcdn.com/*",
+    "*://*.steamdb.info/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.steampowered.com/*",
+        "*://*.instant-gaming.com/*",
+        "*://*.steamdb.info/*"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "data/studios.json",
+        "data/countries.json",
+        "PopupEUvalid.html",
+        "POPUPEUINVALID.html",
+        "POPUPEUINCONNU.html"
+      ],
+      "matches": [
+        "*://*.steampowered.com/*",
+        "*://*.instant-gaming.com/*",
+        "*://*.steamdb.info/*"
+      ]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
