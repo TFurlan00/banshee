@@ -67718,5 +67718,10 @@
     "studio": "iron gate ab",
     "code_pays": "se",
     "source": "manuel"
+  },
+  {
+    "studio": "io interactive a/s",
+    "code_pays": "dk",
+    "source": "community"
   }
 ]
