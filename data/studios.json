@@ -67720,18 +67720,23 @@
     "source": "manuel"
   },
   {
-    "studio": "io interactive a/s",
-    "code_pays": "dk",
-    "source": "community"
+    "studio": "moon studios gmbh",
+    "code_pays": "au",
+    "source": "manuel"
   },
   {
-    "studio": "codepeas",
-    "code_pays": "de",
-    "source": "community"
-  },
-  {
-    "studio": "jundroo, llc",
+    "studio": "lion shield",
     "code_pays": "us",
-    "source": "community"
+    "source": "manuel"
+  },
+  {
+    "studio": "blizzard entertainment, inc.",
+    "code_pays": "us",
+    "source": "manuel"
+  },
+  {
+    "studio": "disruptive blast",
+    "code_pays": "us",
+    "source": "manuel"
   }
 ]
