@@ -67738,5 +67738,10 @@
     "studio": "disruptive blast",
     "code_pays": "us",
     "source": "manuel"
+  },
+  {
+    "studio": "bitbrew",
+    "code_pays": "us",
+    "source": "community"
   }
 ]
