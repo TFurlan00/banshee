@@ -67743,5 +67743,10 @@
     "studio": "bitbrew",
     "code_pays": "us",
     "source": "community"
+  },
+  {
+    "studio": "team croquis",
+    "code_pays": "fr",
+    "source": "community"
   }
 ]
