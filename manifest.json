@@ -1,19 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Banshee",
-  "version": "2.1",
+  "version": "2.3",
   "description": "Indicator for game made in europe",
+  "update_url": "https://lichekingggg.github.io/banshee/updates.xml",
   "permissions": [
     "activeTab",
     "storage",
     "webNavigation",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "*://*.steampowered.com/*",
-    "*://*.instant-gaming.com/*",
-    "*://flagcdn.com/*",
-    "*://*.steamdb.info/*"
+    "*://flagcdn.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -21,9 +21,7 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.steampowered.com/*",
-        "*://*.instant-gaming.com/*",
-        "*://*.steamdb.info/*"
+        "*://*.steampowered.com/*"
       ],
       "js": [
         "content.js"
@@ -40,9 +38,7 @@
         "POPUPEUINCONNU.html"
       ],
       "matches": [
-        "*://*.steampowered.com/*",
-        "*://*.instant-gaming.com/*",
-        "*://*.steamdb.info/*"
+        "*://*.steampowered.com/*"
       ]
     }
   ],
