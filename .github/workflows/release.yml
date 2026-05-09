@@ -6,6 +6,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  EXTENSION_ID: nikdelnhblojmiomnbelngndekgbakdp
 
 jobs:
   build:
@@ -22,7 +23,7 @@ jobs:
             -d "{
               \"embeds\": [{
                 \"title\": \"🔄 Banshee — Mise à jour en cours\",
-                \"description\": \"Un nouveau push a été détecté sur \`main\`. Packaging en cours…\",
+                \"description\": \"Un nouveau push a été détecté sur \`main\`. Publication sur le Chrome Web Store en cours…\",
                 \"color\": 3447003,
                 \"footer\": { \"text\": \"GitHub Actions\" }
               }]
@@ -32,41 +33,64 @@ jobs:
         id: version
         run: echo "VERSION=$(jq -r .version manifest.json)" >> $GITHUB_OUTPUT
 
-      - name: Vérifier que banshee.crx existe
+      - name: Créer le zip de l'extension
         run: |
-          if [ ! -f banshee.crx ]; then
-            echo "❌ banshee.crx introuvable à la racine du repo !"
-            echo "👉 Upload ton fichier .crx via GitHub → Add file → Upload files"
+          zip -r banshee.zip . \
+            -x "*.git*" \
+            -x ".github/*" \
+            -x "*.pem" \
+            -x "*.crx" \
+            -x "node_modules/*" \
+            -x "*.zip"
+          echo "✅ banshee.zip créé"
+
+      - name: Obtenir un access token Google
+        id: token
+        run: |
+          RESPONSE=$(curl -s -X POST https://oauth2.googleapis.com/token \
+            -d "client_id=${{ secrets.CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.CLIENT_SECRET }}" \
+            -d "refresh_token=${{ secrets.REFRESH_TOKEN }}" \
+            -d "grant_type=refresh_token")
+          ACCESS_TOKEN=$(echo $RESPONSE | jq -r .access_token)
+          if [ "$ACCESS_TOKEN" = "null" ] || [ -z "$ACCESS_TOKEN" ]; then
+            echo "❌ Impossible d'obtenir l'access token"
+            echo $RESPONSE
             exit 1
           fi
-          echo "✅ banshee.crx trouvé"
+          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> $GITHUB_OUTPUT
+          echo "✅ Access token obtenu"
 
-      - name: Créer le dossier docs/ si absent
-        run: mkdir -p docs
-
-      - name: Copier le .crx dans docs/
-        run: cp banshee.crx docs/banshee.crx
-
-      - name: Générer docs/updates.xml
+      - name: Uploader le zip sur le Chrome Web Store
+        id: upload
         run: |
-          cat > docs/updates.xml << EOF
-          <?xml version='1.0' encoding='UTF-8'?>
-          <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
-            <app appid='dmceppmennmdfcjpgbkmamechndcohjm'>
-              <updatecheck
-                codebase='https://lichekingggg.github.io/banshee/banshee.crx'
-                version='${{ steps.version.outputs.VERSION }}' />
-            </app>
-          </gupdate>
-          EOF
+          RESPONSE=$(curl -s -X PUT \
+            -H "Authorization: Bearer ${{ steps.token.outputs.ACCESS_TOKEN }}" \
+            -H "x-goog-api-version: 2" \
+            -T banshee.zip \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/${{ env.EXTENSION_ID }}")
+          echo "Upload response: $RESPONSE"
+          STATUS=$(echo $RESPONSE | jq -r .uploadState)
+          if [ "$STATUS" != "SUCCESS" ] && [ "$STATUS" != "IN_PROGRESS" ]; then
+            echo "❌ Upload échoué : $STATUS"
+            exit 1
+          fi
+          echo "✅ Upload réussi : $STATUS"
 
-      - name: Commit & push
+      - name: Publier sur le Chrome Web Store
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add docs/updates.xml docs/banshee.crx
-          git commit -m "chore: release v${{ steps.version.outputs.VERSION }}" || echo "Rien à commiter"
-          git push
+          RESPONSE=$(curl -s -X POST \
+            -H "Authorization: Bearer ${{ steps.token.outputs.ACCESS_TOKEN }}" \
+            -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0" \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/${{ env.EXTENSION_ID }}/publish")
+          echo "Publish response: $RESPONSE"
+          STATUS=$(echo $RESPONSE | jq -r .status[0])
+          if [ "$STATUS" != "OK" ] && [ "$STATUS" != "PUBLISHED_WITH_FRICTION" ]; then
+            echo "❌ Publication échouée : $STATUS"
+            exit 1
+          fi
+          echo "✅ Publication réussie : $STATUS"
 
       - name: 🎉 Discord — Succès
         if: success()
@@ -75,12 +99,12 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{
               \"embeds\": [{
-                \"title\": \"✅ Banshee v${{ steps.version.outputs.VERSION }} — Déployée !\",
-                \"description\": \"La mise à jour a été publiée avec succès sur GitHub Pages.\nChrome la récupérera automatiquement dans les prochaines heures.\",
+                \"title\": \"✅ Banshee v${{ steps.version.outputs.VERSION }} — Publiée sur le Web Store !\",
+                \"description\": \"La mise à jour a été publiée avec succès.\nChrome la déploiera automatiquement aux utilisateurs.\",
                 \"color\": 3066993,
                 \"fields\": [
                   { \"name\": \"Version\", \"value\": \"\`${{ steps.version.outputs.VERSION }}\`\", \"inline\": true },
-                  { \"name\": \"CRX\", \"value\": \"[Télécharger](https://lichekingggg.github.io/banshee/banshee.crx)\", \"inline\": true },
+                  { \"name\": \"Store\", \"value\": \"[Voir l'extension](https://chromewebstore.google.com/detail/banshee/nikdelnhblojmiomnbelngndekgbakdp)\", \"inline\": true },
                   { \"name\": \"Commit\", \"value\": \"[Voir sur GitHub](https://github.com/LicheKingggg/banshee/commits/main)\", \"inline\": false }
                 ],
                 \"footer\": { \"text\": \"GitHub Actions\" }
@@ -95,7 +119,7 @@ jobs:
             -d "{
               \"embeds\": [{
                 \"title\": \"❌ Banshee — Échec du déploiement\",
-                \"description\": \"Une erreur est survenue pendant le packaging.\n[Voir les logs](https://github.com/LicheKingggg/banshee/actions)\",
+                \"description\": \"Une erreur est survenue pendant la publication.\n[Voir les logs](https://github.com/LicheKingggg/banshee/actions)\",
                 \"color\": 15158332,
                 \"footer\": { \"text\": \"GitHub Actions\" }
               }]
