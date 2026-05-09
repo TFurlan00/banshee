@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,31 +19,33 @@ jobs:
         run: |
           curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "🔄 Banshee — Mise à jour en cours",
-                "description": "Un nouveau push a été détecté sur `main`. Packaging en cours…",
-                "color": 3447003,
-                "footer": { "text": "GitHub Actions" },
-                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+            -d "{
+              \"embeds\": [{
+                \"title\": \"🔄 Banshee — Mise à jour en cours\",
+                \"description\": \"Un nouveau push a été détecté sur \`main\`. Packaging en cours…\",
+                \"color\": 3447003,
+                \"footer\": { \"text\": \"GitHub Actions\" }
               }]
-            }'
+            }"
 
       - name: Lire la version du manifest
         id: version
         run: echo "VERSION=$(jq -r .version manifest.json)" >> $GITHUB_OUTPUT
 
+      - name: Vérifier que banshee.crx existe
+        run: |
+          if [ ! -f banshee.crx ]; then
+            echo "❌ banshee.crx introuvable à la racine du repo !"
+            echo "👉 Upload ton fichier .crx via GitHub → Add file → Upload files"
+            exit 1
+          fi
+          echo "✅ banshee.crx trouvé"
+
       - name: Créer le dossier docs/ si absent
         run: mkdir -p docs
 
       - name: Copier le .crx dans docs/
-        run: |
-          if [ -f banshee.crx ]; then
-            cp banshee.crx docs/banshee.crx
-          else
-            echo "⚠️ banshee.crx introuvable à la racine du repo !"
-            exit 1
-          fi
+        run: cp banshee.crx docs/banshee.crx
 
       - name: Générer docs/updates.xml
         run: |
@@ -68,32 +73,30 @@ jobs:
         run: |
           curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "✅ Banshee v${{ steps.version.outputs.VERSION }} — Déployée !",
-                "description": "La mise à jour a été publiée avec succès sur GitHub Pages.\nChrome la récupérera automatiquement dans les prochaines heures.",
-                "color": 3066993,
-                "fields": [
-                  { "name": "Version", "value": "`${{ steps.version.outputs.VERSION }}`", "inline": true },
-                  { "name": "CRX", "value": "[Télécharger](https://lichekingggg.github.io/banshee/banshee.crx)", "inline": true },
-                  { "name": "Commit", "value": "[Voir sur GitHub](https://github.com/LicheKingggg/banshee/commits/main)", "inline": false }
+            -d "{
+              \"embeds\": [{
+                \"title\": \"✅ Banshee v${{ steps.version.outputs.VERSION }} — Déployée !\",
+                \"description\": \"La mise à jour a été publiée avec succès sur GitHub Pages.\nChrome la récupérera automatiquement dans les prochaines heures.\",
+                \"color\": 3066993,
+                \"fields\": [
+                  { \"name\": \"Version\", \"value\": \"\`${{ steps.version.outputs.VERSION }}\`\", \"inline\": true },
+                  { \"name\": \"CRX\", \"value\": \"[Télécharger](https://lichekingggg.github.io/banshee/banshee.crx)\", \"inline\": true },
+                  { \"name\": \"Commit\", \"value\": \"[Voir sur GitHub](https://github.com/LicheKingggg/banshee/commits/main)\", \"inline\": false }
                 ],
-                "footer": { "text": "GitHub Actions" },
-                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                \"footer\": { \"text\": \"GitHub Actions\" }
               }]
-            }'
+            }"
 
       - name: ❌ Discord — Échec
         if: failure()
         run: |
           curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "❌ Banshee — Échec du déploiement",
-                "description": "Une erreur est survenue pendant le packaging.\n[Voir les logs](https://github.com/LicheKingggg/banshee/actions)",
-                "color": 15158332,
-                "footer": { "text": "GitHub Actions" },
-                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+            -d "{
+              \"embeds\": [{
+                \"title\": \"❌ Banshee — Échec du déploiement\",
+                \"description\": \"Une erreur est survenue pendant le packaging.\n[Voir les logs](https://github.com/LicheKingggg/banshee/actions)\",
+                \"color\": 15158332,
+                \"footer\": { \"text\": \"GitHub Actions\" }
               }]
-            }'
+            }"
