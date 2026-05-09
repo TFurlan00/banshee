@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Banshee",
-  "version": "2.3",
+  "version": "2.4",
   "description": "Indicator for game made in europe",
   "update_url": "https://lichekingggg.github.io/banshee/updates.xml",
   "permissions": [
