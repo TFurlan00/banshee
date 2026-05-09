@@ -1,0 +1,99 @@
+name: Package & Release Banshee
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔔 Discord — Début de la mise à jour
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "🔄 Banshee — Mise à jour en cours",
+                "description": "Un nouveau push a été détecté sur `main`. Packaging en cours…",
+                "color": 3447003,
+                "footer": { "text": "GitHub Actions" },
+                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+              }]
+            }'
+
+      - name: Lire la version du manifest
+        id: version
+        run: echo "VERSION=$(jq -r .version manifest.json)" >> $GITHUB_OUTPUT
+
+      - name: Créer le dossier docs/ si absent
+        run: mkdir -p docs
+
+      - name: Copier le .crx dans docs/
+        run: |
+          if [ -f banshee.crx ]; then
+            cp banshee.crx docs/banshee.crx
+          else
+            echo "⚠️ banshee.crx introuvable à la racine du repo !"
+            exit 1
+          fi
+
+      - name: Générer docs/updates.xml
+        run: |
+          cat > docs/updates.xml << EOF
+          <?xml version='1.0' encoding='UTF-8'?>
+          <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
+            <app appid='dmceppmennmdfcjpgbkmamechndcohjm'>
+              <updatecheck
+                codebase='https://lichekingggg.github.io/banshee/banshee.crx'
+                version='${{ steps.version.outputs.VERSION }}' />
+            </app>
+          </gupdate>
+          EOF
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add docs/updates.xml docs/banshee.crx
+          git commit -m "chore: release v${{ steps.version.outputs.VERSION }}" || echo "Rien à commiter"
+          git push
+
+      - name: 🎉 Discord — Succès
+        if: success()
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "✅ Banshee v${{ steps.version.outputs.VERSION }} — Déployée !",
+                "description": "La mise à jour a été publiée avec succès sur GitHub Pages.\nChrome la récupérera automatiquement dans les prochaines heures.",
+                "color": 3066993,
+                "fields": [
+                  { "name": "Version", "value": "`${{ steps.version.outputs.VERSION }}`", "inline": true },
+                  { "name": "CRX", "value": "[Télécharger](https://lichekingggg.github.io/banshee/banshee.crx)", "inline": true },
+                  { "name": "Commit", "value": "[Voir sur GitHub](https://github.com/LicheKingggg/banshee/commits/main)", "inline": false }
+                ],
+                "footer": { "text": "GitHub Actions" },
+                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+              }]
+            }'
+
+      - name: ❌ Discord — Échec
+        if: failure()
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "❌ Banshee — Échec du déploiement",
+                "description": "Une erreur est survenue pendant le packaging.\n[Voir les logs](https://github.com/LicheKingggg/banshee/actions)",
+                "color": 15158332,
+                "footer": { "text": "GitHub Actions" },
+                "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+              }]
+            }'
