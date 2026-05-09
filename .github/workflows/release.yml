@@ -70,14 +70,50 @@ jobs:
             -T banshee.zip \
             "https://www.googleapis.com/upload/chromewebstore/v1.1/items/${{ env.EXTENSION_ID }}")
           echo "Upload response: $RESPONSE"
+
           STATUS=$(echo $RESPONSE | jq -r .uploadState)
-          if [ "$STATUS" != "SUCCESS" ] && [ "$STATUS" != "IN_PROGRESS" ]; then
-            echo "❌ Upload échoué : $STATUS"
+          ERROR_CODE=$(echo $RESPONSE | jq -r '.itemError[0].error_code // empty')
+
+          # Cas : extension en cours de review Google
+          if [ "$ERROR_CODE" = "ITEM_NOT_UPDATABLE" ]; then
+            curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"embeds\": [{
+                  \"title\": \"⏳ Banshee — En cours de review Google\",
+                  \"description\": \"Impossible de publier pour l'instant.\nL'extension est en cours d'examen par Google (pending review).\n\n**Que faire ?** Attends que Google valide la version actuelle, puis re-push.\",
+                  \"color\": 16776960,
+                  \"footer\": { \"text\": \"GitHub Actions\" }
+                }]
+              }"
+            echo "⏳ Extension en pending review, arrêt sans erreur."
+            exit 0
+          fi
+
+          # Cas : update_url encore présent dans le manifest
+          if [ "$ERROR_CODE" = "PKG_HAS_WRONG_UPDATE_URL" ]; then
+            curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"embeds\": [{
+                  \"title\": \"⚠️ Banshee — Erreur manifest.json\",
+                  \"description\": \"Le champ \`update_url\` est encore présent dans \`manifest.json\`.\nSupprime cette ligne et re-push.\",
+                  \"color\": 15158332,
+                  \"footer\": { \"text\": \"GitHub Actions\" }
+                }]
+              }"
             exit 1
           fi
+
+          if [ "$STATUS" != "SUCCESS" ] && [ "$STATUS" != "IN_PROGRESS" ]; then
+            echo "❌ Upload échoué : $STATUS — $ERROR_CODE"
+            exit 1
+          fi
+
           echo "✅ Upload réussi : $STATUS"
 
       - name: Publier sur le Chrome Web Store
+        id: publish
         run: |
           RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer ${{ steps.token.outputs.ACCESS_TOKEN }}" \
@@ -85,11 +121,30 @@ jobs:
             -H "Content-Length: 0" \
             "https://www.googleapis.com/chromewebstore/v1.1/items/${{ env.EXTENSION_ID }}/publish")
           echo "Publish response: $RESPONSE"
-          STATUS=$(echo $RESPONSE | jq -r .status[0])
+
+          STATUS=$(echo $RESPONSE | jq -r '.status[0] // empty')
+          ERROR_MSG=$(echo $RESPONSE | jq -r '.error.message // empty')
+
+          # Cas : infos de confidentialité manquantes
+          if echo "$ERROR_MSG" | grep -q "privacy"; then
+            curl -s -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"embeds\": [{
+                  \"title\": \"⚠️ Banshee — Infos de confidentialité manquantes\",
+                  \"description\": \"Google bloque la publication car les infos de confidentialité ne sont pas remplies.\n\n**Que faire ?**\n1. Va sur le [Developer Dashboard](https://chrome.google.com/webstore/devconsole)\n2. Clique sur Banshee → onglet **Privacy practices**\n3. Remplis les champs obligatoires\n4. Re-push\",
+                  \"color\": 15158332,
+                  \"footer\": { \"text\": \"GitHub Actions\" }
+                }]
+              }"
+            exit 1
+          fi
+
           if [ "$STATUS" != "OK" ] && [ "$STATUS" != "PUBLISHED_WITH_FRICTION" ]; then
             echo "❌ Publication échouée : $STATUS"
             exit 1
           fi
+
           echo "✅ Publication réussie : $STATUS"
 
       - name: 🎉 Discord — Succès
@@ -119,7 +174,7 @@ jobs:
             -d "{
               \"embeds\": [{
                 \"title\": \"❌ Banshee — Échec du déploiement\",
-                \"description\": \"Une erreur est survenue pendant la publication.\n[Voir les logs](https://github.com/LicheKingggg/banshee/actions)\",
+                \"description\": \"Une erreur inattendue est survenue pendant la publication.\n[Voir les logs](https://github.com/LicheKingggg/banshee/actions)\",
                 \"color\": 15158332,
                 \"footer\": { \"text\": \"GitHub Actions\" }
               }]
