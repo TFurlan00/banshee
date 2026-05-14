@@ -9,22 +9,24 @@ const pathname = window.location.pathname;
 
 const isSteam         = hostname.includes("steampowered.com");
 const isInstantGaming = hostname.includes("instant-gaming.com");
+const isSteamDB       = hostname.includes("steamdb.info");
 
-const isSteamGamePage = isSteam && /^\/app\/\d+\//.test(pathname);
-const isIGGamePage    = isInstantGaming && /^\/[a-z]{2}\/\d+-/.test(pathname);
-const isGamePage      = isSteamGamePage || isIGGamePage;
+const isSteamGamePage   = isSteam         && /^\/app\/\d+\//.test(pathname);
+const isIGGamePage      = isInstantGaming  && /^\/[a-z]{2}\/\d+-/.test(pathname);
+const isSteamDBGamePage = isSteamDB        && /^\/app\/\d+/.test(pathname);
+const isGamePage        = isSteamGamePage || isIGGamePage || isSteamDBGamePage;
 
-console.log(`[CONTENT] Site: ${isSteam ? "Steam" : isInstantGaming ? "InstantGaming" : "inconnu"} | Page jeu: ${isGamePage}`);
+console.log(`[CONTENT] Site: ${isSteam ? "Steam" : isInstantGaming ? "InstantGaming" : isSteamDB ? "SteamDB" : "inconnu"} | Page jeu: ${isGamePage}`);
 
 // ── Sélecteurs Steam ──────────────────────────────────────────────────────
+// On cible uniquement les liens pointant vers steampowered.com/developer/
+// pour ignorer les liens injectés par l'extension SteamDB (steamdb.info/developer/)
 const STEAM_STUDIO_SELECTORS = [
-  ".game_details .dev_row .summary a",
-  ".game_area_details_specs a[href*='/developer/']",
-  ".dev_row a",
-  "#developer_info a",
-  ".block_bg_inner a[href*='developer']",
-  ".game_header_developer a",
-  ".details_block a[href*='/developer/']"
+  "#developers_list a[href*='steampowered.com/developer']",
+  ".dev_row .summary a[href*='steampowered.com/developer']",
+  ".game_details .dev_row a[href*='steampowered.com/developer']",
+  ".details_block a[href*='steampowered.com/developer']",
+  ".block_bg_inner a[href*='steampowered.com/developer']",
 ];
 
 // ── Traductions bannières ─────────────────────────────────────────────────
@@ -123,9 +125,41 @@ function detectStudioIG() {
   return null;
 }
 
+// ── Détection SteamDB ─────────────────────────────────────────────────────
+function detectStudioSteamDB() {
+  // Stratégie 1 : ligne de tableau contenant "Developer"
+  const rows = document.querySelectorAll("tr");
+  for (const row of rows) {
+    const cells = row.querySelectorAll("td, th");
+    for (let i = 0; i < cells.length - 1; i++) {
+      if (/developer/i.test(cells[i].textContent)) {
+        const link = cells[i + 1].querySelector("a");
+        const name = (link || cells[i + 1]).textContent.trim().split(",")[0].trim();
+        if (name && name.length > 1) {
+          console.log(`[CONTENT-STEAMDB] Studio via tr : "${name}"`);
+          return name;
+        }
+      }
+    }
+  }
+
+  // Stratégie 2 : lien direct /developer/
+  const devLink = document.querySelector('a[href*="/developer/"]');
+  if (devLink) {
+    const name = devLink.textContent.trim();
+    if (name && name.length > 1) {
+      console.log(`[CONTENT-STEAMDB] Studio via lien : "${name}"`);
+      return name;
+    }
+  }
+
+  return null;
+}
+
 function detectStudio() {
-  if (isSteamGamePage) return detectStudioSteam();
-  if (isIGGamePage)    return detectStudioIG();
+  if (isSteamGamePage)   return detectStudioSteam();
+  if (isIGGamePage)      return detectStudioIG();
+  if (isSteamDBGamePage) return detectStudioSteamDB();
   return null;
 }
 
@@ -147,24 +181,27 @@ function afficherBanniere(type, info) {
 function _afficherBanniere(type, info) {
   if (document.getElementById("banshee-banner")) return;
 
-  const fichiers = {
-    valid:   "PopupEUvalid.html",
-    invalid: "POPUPEUINVALID.html",
-    inconnu: "POPUPEUINCONNU.html"
-  };
+  // Lire HD + langue en une seule fois AVANT de choisir le fichier
+  chrome.storage.local.get(["banshee_hd", "banshee_lang"], ({ banshee_hd, banshee_lang }) => {
+    const isHD = banshee_hd === true;
 
-  fetch(chrome.runtime.getURL(fichiers[type]))
-    .then(res => res.text())
-    .then(html => {
-      const wrap = document.createElement("div");
-      wrap.className = "banshee-wrap";
-      wrap.style.cssText = "position:fixed;top:80px;right:20px;z-index:99999;pointer-events:none;";
-      wrap.innerHTML = html;
-      document.body.appendChild(wrap);
+    const fichiers = {
+      valid:   isHD ? "PopupEUvalid_large.html"     : "PopupEUvalid.html",
+      invalid: isHD ? "POPUPEUINVALID_large.html"   : "POPUPEUINVALID.html",
+      inconnu: isHD ? "POPUPEUINCONNU_large.html"   : "POPUPEUINCONNU.html"
+    };
 
-      chrome.storage.local.get("banshee_lang", ({ banshee_lang }) => {
-        const lang = banshee_lang || "fr";
-        const tr   = BANNER_TRANSLATIONS[lang] || BANNER_TRANSLATIONS.fr;
+    fetch(chrome.runtime.getURL(fichiers[type]))
+      .then(res => res.text())
+      .then(html => {
+        const wrap = document.createElement("div");
+        wrap.className = "banshee-wrap";
+        wrap.style.cssText = "position:fixed;top:80px;right:20px;z-index:99999;pointer-events:none;";
+        wrap.innerHTML = html;
+        document.body.appendChild(wrap);
+
+          const lang = banshee_lang || "fr";
+          const tr   = BANNER_TRANSLATIONS[lang] || BANNER_TRANSLATIONS.fr;
 
         const badgeEl = wrap.querySelector(".b-badge");
         const subEl   = wrap.querySelector(".b-sub");
@@ -200,11 +237,11 @@ function _afficherBanniere(type, info) {
           const studioEl = wrap.querySelector("#b-studio");
           if (studioEl) studioEl.textContent = tr.inconnu_name;
         }
-      });
 
-      console.log(`✅ [CONTENT] Bannière "${type}" injectée`);
-    })
-    .catch(err => console.error("[CONTENT] Erreur bannière :", err));
+        console.log(`✅ [CONTENT] Bannière "${type}" ${isHD ? "(large)" : ""} injectée`);
+      })
+      .catch(err => console.error("[CONTENT] Erreur bannière :", err));
+  });
 }
 
 function envoyerStudio(studioRaw, isRetry = false) {
@@ -255,7 +292,7 @@ function tryDetect(isRetry = false) {
   if (isDetecting) return;
   isDetecting = true;
 
-  const MAX_ATTEMPTS = (isIGGamePage || isRetry) ? 40 : 20;
+  const MAX_ATTEMPTS = (isIGGamePage || isSteamDBGamePage || isRetry) ? 40 : 20;
   let attempts = 0;
 
   function loop() {
@@ -280,11 +317,21 @@ function tryDetect(isRetry = false) {
 
 // ── Démarrage ─────────────────────────────────────────────────────────────
 if (isGamePage) {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => tryDetect(false));
-  } else {
-    tryDetect(false);
-  }
+  const siteKey = isSteamGamePage ? "banshee_site_steam"
+                : isIGGamePage    ? "banshee_site_ig"
+                :                   "banshee_site_steamdb";
+
+  chrome.storage.local.get([siteKey], (settings) => {
+    if (settings[siteKey] === false) {
+      console.log(`[CONTENT] Extension désactivée pour ce site (${siteKey}).`);
+      return;
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => tryDetect(false));
+    } else {
+      tryDetect(false);
+    }
+  });
 } else {
   console.log(`🚫 [CONTENT] Pas une page de jeu — extension inactive.`);
 }
@@ -293,11 +340,22 @@ if (isGamePage) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "retryDetection") {
     console.log("🔄 [CONTENT] Retry immédiat depuis popup...");
-    const old = document.querySelector(".banshee-wrap");
-    if (old) old.remove();
-    isDetecting = false;
-    // isRetry=true : cette fois on affichera la bannière inconnu si échec
-    tryDetect(true);
+
+    const siteKey = isSteamGamePage ? "banshee_site_steam"
+                  : isIGGamePage    ? "banshee_site_ig"
+                  :                   "banshee_site_steamdb";
+
+    chrome.storage.local.get([siteKey], (settings) => {
+      if (settings[siteKey] === false) {
+        console.log(`[CONTENT] Retry annulé — extension désactivée pour ce site.`);
+        return;
+      }
+      const old = document.querySelector(".banshee-wrap");
+      if (old) old.remove();
+      isDetecting = false;
+      tryDetect(true);
+    });
+
     sendResponse({ status: "retrying" });
     return true;
   }
