@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Steam country games — Banshee",
-  "version": "3.0",
-  "description": "Indicator for game made in europe",
+  "name": "Steam country games finder — Banshee",
+  "version": "3.1",
+  "description": "A browser extension that displays the developer studio's country of origin directly on game store pages like Steam, Instant Gaming, SteamDB, and more.",
   "permissions": [
     "activeTab",
     "storage",
