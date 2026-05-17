@@ -4,29 +4,40 @@ console.log("=== BANSHEE : Détection du studio ===");
 let isDetecting = false;
 
 // ── Détection du site ─────────────────────────────────────────────────────
+// Fonctions dynamiques — recalculées à chaque appel pour gérer la navigation SPA Steam
 const hostname = window.location.hostname;
-const pathname = window.location.pathname;
 
 const isSteam         = hostname.includes("steampowered.com");
 const isInstantGaming = hostname.includes("instant-gaming.com");
 const isSteamDB       = hostname.includes("steamdb.info");
 
-const isSteamGamePage   = isSteam         && /^\/app\/\d+\//.test(pathname);
-const isIGGamePage      = isInstantGaming  && /^\/[a-z]{2}\/\d+-/.test(pathname);
-const isSteamDBGamePage = isSteamDB        && /^\/app\/\d+/.test(pathname);
-const isGamePage        = isSteamGamePage || isIGGamePage || isSteamDBGamePage;
+function getCurrentPath()      { return window.location.pathname; }
+function isSteamGamePage()     { return isSteam         && /^\/app\/\d+\//.test(getCurrentPath()); }
+function isIGGamePage()        { return isInstantGaming && /^\/[a-z]{2}\/\d+-/.test(getCurrentPath()); }
+function isSteamDBGamePage()   { return isSteamDB       && /^\/app\/\d+/.test(getCurrentPath()); }
+function isGamePage()          { return isSteamGamePage() || isIGGamePage() || isSteamDBGamePage(); }
 
-console.log(`[CONTENT] Site: ${isSteam ? "Steam" : isInstantGaming ? "InstantGaming" : isSteamDB ? "SteamDB" : "inconnu"} | Page jeu: ${isGamePage}`);
+console.log(`[CONTENT] Site: ${isSteam ? "Steam" : isInstantGaming ? "InstantGaming" : isSteamDB ? "SteamDB" : "inconnu"} | Page jeu: ${isGamePage()}`);
 
 // ── Sélecteurs Steam ──────────────────────────────────────────────────────
-// On cible uniquement les liens pointant vers steampowered.com/developer/
-// pour ignorer les liens injectés par l'extension SteamDB (steamdb.info/developer/)
+// Filtre sur steampowered.com pour ignorer les injections de l'extension SteamDB.
+// 3 formats possibles :
+//   /developer/valve           → studios connus
+//   /search/?developer=XYZ    → studios sans page dédiée
+//   /curator/12345             → pages ?queue=
 const STEAM_STUDIO_SELECTORS = [
   "#developers_list a[href*='steampowered.com/developer']",
   ".dev_row .summary a[href*='steampowered.com/developer']",
   ".game_details .dev_row a[href*='steampowered.com/developer']",
   ".details_block a[href*='steampowered.com/developer']",
   ".block_bg_inner a[href*='steampowered.com/developer']",
+  "#developers_list a[href*='steampowered.com/search/?developer']",
+  ".dev_row .summary a[href*='steampowered.com/search/?developer']",
+  ".game_details .dev_row a[href*='steampowered.com/search/?developer']",
+  ".details_block a[href*='steampowered.com/search/?developer']",
+  "#developers_list a[href*='steampowered.com/curator']",
+  ".dev_row .summary a[href*='steampowered.com/curator']",
+  ".details_block a[href*='steampowered.com/curator']",
 ];
 
 // ── Traductions bannières ─────────────────────────────────────────────────
@@ -157,9 +168,9 @@ function detectStudioSteamDB() {
 }
 
 function detectStudio() {
-  if (isSteamGamePage)   return detectStudioSteam();
-  if (isIGGamePage)      return detectStudioIG();
-  if (isSteamDBGamePage) return detectStudioSteamDB();
+  if (isSteamGamePage())   return detectStudioSteam();
+  if (isIGGamePage())      return detectStudioIG();
+  if (isSteamDBGamePage()) return detectStudioSteamDB();
   return null;
 }
 
@@ -288,11 +299,11 @@ function envoyerStudio(studioRaw, isRetry = false) {
 
 // ── Boucle de détection ───────────────────────────────────────────────────
 function tryDetect(isRetry = false) {
-  if (!isGamePage) return;
+  if (!isGamePage()) return;
   if (isDetecting) return;
   isDetecting = true;
 
-  const MAX_ATTEMPTS = (isIGGamePage || isSteamDBGamePage || isRetry) ? 40 : 20;
+  const MAX_ATTEMPTS = (isIGGamePage() || isSteamDBGamePage() || isRetry) ? 40 : 20;
   let attempts = 0;
 
   function loop() {
@@ -316,9 +327,9 @@ function tryDetect(isRetry = false) {
 }
 
 // ── Démarrage ─────────────────────────────────────────────────────────────
-if (isGamePage) {
-  const siteKey = isSteamGamePage ? "banshee_site_steam"
-                : isIGGamePage    ? "banshee_site_ig"
+if (isGamePage()) {
+  const siteKey = isSteamGamePage() ? "banshee_site_steam"
+                : isIGGamePage()    ? "banshee_site_ig"
                 :                   "banshee_site_steamdb";
 
   chrome.storage.local.get([siteKey], (settings) => {
@@ -341,8 +352,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "retryDetection") {
     console.log("🔄 [CONTENT] Retry immédiat depuis popup...");
 
-    const siteKey = isSteamGamePage ? "banshee_site_steam"
-                  : isIGGamePage    ? "banshee_site_ig"
+    const siteKey = isSteamGamePage() ? "banshee_site_steam"
+                  : isIGGamePage()    ? "banshee_site_ig"
                   :                   "banshee_site_steamdb";
 
     chrome.storage.local.get([siteKey], (settings) => {
